@@ -14,38 +14,28 @@ import (
 type CustomTypeFunc func(fs *flag.FlagSet, varPtr interface{}, name, usage string)
 
 type Confinator struct {
-	mu    sync.RWMutex
-	types map[string]CustomTypeFunc
-	fs    *flag.FlagSet
+	mu          sync.RWMutex
+	customTypes map[string]CustomTypeFunc
 }
 
-func NewConfinator(fs *flag.FlagSet) *Confinator {
+func NewConfinator() *Confinator {
 	cf := new(Confinator)
-	cf.types = make(map[string]CustomTypeFunc)
-	cf.fs = fs
+	cf.customTypes = make(map[string]CustomTypeFunc)
 	return cf
 }
 
-var customTypes = make(map[string]CustomTypeFunc)
-
-func buildTypeKey(varType reflect.Type) string {
+func (cf *Confinator) buildTypeKey(varType reflect.Type) string {
 	return fmt.Sprintf("%s.%s", varType.PkgPath(), varType.Name())
 }
 
-func RegisterType(varPtr interface{}, fn CustomTypeFunc) {
+func (cf *Confinator) RegisterType(varPtr interface{}, fn CustomTypeFunc) {
+	cf.mu.Lock()
+	defer cf.mu.Unlock()
 	varType := reflect.TypeOf(varPtr)
 	if varType.Kind() != reflect.Ptr {
 		panic(fmt.Sprintf("Must provided a pointer, saw %T", varPtr))
 	}
-	customTypes[buildTypeKey(varType)] = fn
-}
-
-// FlushRegisteredTypes cleans up the state of this package, indicating that you are done building your config and no
-// longer need any state that may be contained within.
-//
-// This includes nil'ing out any registered custom types.  Any attempt to register a new type will result in a panic.
-func FlushRegisteredTypes() {
-	customTypes = nil
+	cf.customTypes[cf.buildTypeKey(varType)] = fn
 }
 
 // StringDuration is a quick hack to let us use time.Duration strings as config values in hcl files
@@ -180,7 +170,7 @@ func (s *stringSliceValue) String() string {
 }
 
 // FlagVar is a convenience method that handles a few common config struct -> flag cases
-func FlagVar(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+func (cf *Confinator) FlagVar(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
 	switch x := varPtr.(type) {
 	case *bool:
 		var v bool
@@ -219,7 +209,9 @@ func FlagVar(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
 	case *map[string]string:
 		fs.Var(newStringMapValue(x), name, usage)
 	default:
-		if fn, ok := customTypes[buildTypeKey(reflect.TypeOf(varPtr))]; ok {
+		cf.mu.RLock()
+		defer cf.mu.RUnlock()
+		if fn, ok := cf.customTypes[cf.buildTypeKey(reflect.TypeOf(varPtr))]; ok {
 			fn(fs, varPtr, name, usage)
 		} else {
 			panic(fmt.Sprintf("invalid type: %T", varPtr))
