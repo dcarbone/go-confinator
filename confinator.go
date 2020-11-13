@@ -11,31 +11,93 @@ import (
 	"time"
 )
 
-type CustomTypeFunc func(fs *flag.FlagSet, varPtr interface{}, name, usage string)
+func buildFlagVarTypeKey(varType reflect.Type) string {
+	const kfmt = "%s.%s"
+	return fmt.Sprintf(kfmt, varType.PkgPath(), varType.Name())
+}
+
+type FlagVarTypeHandlerFunc func(fs *flag.FlagSet, varPtr interface{}, name, usage string)
+
+// DefaultFlagVarTypes returns a list of
+func DefaultFlagVarTypes() map[string]FlagVarTypeHandlerFunc {
+	kfn := func(ptr interface{}) string {
+		return buildFlagVarTypeKey(reflect.TypeOf(ptr))
+	}
+	return map[string]FlagVarTypeHandlerFunc{
+		// *string
+		kfn(new(string)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+			var v string
+			if varPtr.(*string) != nil {
+				v = *varPtr.(*string)
+			}
+			fs.StringVar(varPtr.(*string), name, v, usage)
+		},
+		// *bool
+		kfn(new(bool)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+			var v bool
+			if varPtr.(*bool) != nil {
+				v = *varPtr.(*bool)
+			}
+			fs.BoolVar(varPtr.(*bool), name, v, usage)
+		},
+		// *int
+		kfn(new(int)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+			var v int
+			if varPtr.(*int) != nil {
+				v = *varPtr.(*int)
+			}
+			fs.IntVar(varPtr.(*int), name, v, usage)
+		},
+		// *uint
+		kfn(new(uint)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+			var v uint
+			if varPtr.(*uint) != nil {
+				v = *varPtr.(*uint)
+			}
+			fs.UintVar(varPtr.(*uint), name, v, usage)
+		},
+		// *[]string
+		kfn(new([]string)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+			fs.Var(newStringSliceValue(varPtr.(*[]string)), name, usage)
+		},
+		// *[]map[string]string
+		kfn(new(map[string]string)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+			fs.Var(newStringMapValue(varPtr.(*map[string]string)), name, usage)
+		},
+		// *time.Duration
+		kfn(new(time.Duration)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+			var v time.Duration
+			if varPtr.(*time.Duration) != nil {
+				v = *varPtr.(*time.Duration)
+			}
+			fs.DurationVar(varPtr.(*time.Duration), name, v, usage)
+		},
+		// *StringDuration
+		kfn(new(StringDuration)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+			fs.Var(varPtr.(*StringDuration), name, usage)
+		},
+	}
+}
 
 type Confinator struct {
-	mu          sync.RWMutex
-	customTypes map[string]CustomTypeFunc
+	mu    sync.RWMutex
+	types map[string]FlagVarTypeHandlerFunc
 }
 
 func NewConfinator() *Confinator {
 	cf := new(Confinator)
-	cf.customTypes = make(map[string]CustomTypeFunc)
+	cf.types = DefaultFlagVarTypes()
 	return cf
 }
 
-func (cf *Confinator) buildTypeKey(varType reflect.Type) string {
-	return fmt.Sprintf("%s.%s", varType.PkgPath(), varType.Name())
-}
-
-func (cf *Confinator) RegisterType(varPtr interface{}, fn CustomTypeFunc) {
+func (cf *Confinator) RegisterFlagVarType(varPtr interface{}, fn FlagVarTypeHandlerFunc) {
 	cf.mu.Lock()
 	defer cf.mu.Unlock()
 	varType := reflect.TypeOf(varPtr)
 	if varType.Kind() != reflect.Ptr {
 		panic(fmt.Sprintf("Must provided a pointer, saw %T", varPtr))
 	}
-	cf.customTypes[cf.buildTypeKey(varType)] = fn
+	cf.types[buildFlagVarTypeKey(varType)] = fn
 }
 
 // StringDuration is a quick hack to let us use time.Duration strings as config values in hcl files
@@ -171,51 +233,12 @@ func (s *stringSliceValue) String() string {
 
 // FlagVar is a convenience method that handles a few common config struct -> flag cases
 func (cf *Confinator) FlagVar(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
-	switch x := varPtr.(type) {
-	case *bool:
-		var v bool
-		if varPtr.(*bool) != nil {
-			v = *varPtr.(*bool)
-		}
-		fs.BoolVar(varPtr.(*bool), name, v, usage)
-	case *time.Duration:
-		var v time.Duration
-		if varPtr.(*time.Duration) != nil {
-			v = *varPtr.(*time.Duration)
-		}
-		fs.DurationVar(varPtr.(*time.Duration), name, v, usage)
-	case *StringDuration:
-		fs.Var(varPtr.(*StringDuration), name, usage)
-	case *int:
-		var v int
-		if varPtr.(*int) != nil {
-			v = *varPtr.(*int)
-		}
-		fs.IntVar(varPtr.(*int), name, v, usage)
-	case *uint:
-		var v uint
-		if varPtr.(*uint) != nil {
-			v = *varPtr.(*uint)
-		}
-		fs.UintVar(varPtr.(*uint), name, v, usage)
-	case *string:
-		var v string
-		if varPtr.(*string) != nil {
-			v = *varPtr.(*string)
-		}
-		fs.StringVar(varPtr.(*string), name, v, usage)
-	case *[]string:
-		fs.Var(newStringSliceValue(x), name, usage)
-	case *map[string]string:
-		fs.Var(newStringMapValue(x), name, usage)
-	default:
-		cf.mu.RLock()
-		defer cf.mu.RUnlock()
-		if fn, ok := cf.customTypes[cf.buildTypeKey(reflect.TypeOf(varPtr))]; ok {
-			fn(fs, varPtr, name, usage)
-		} else {
-			panic(fmt.Sprintf("invalid type: %T", varPtr))
-		}
+	cf.mu.RLock()
+	defer cf.mu.RUnlock()
+	if fn, ok := cf.types[buildFlagVarTypeKey(reflect.TypeOf(varPtr))]; ok {
+		fn(fs, varPtr, name, usage)
+	} else {
+		panic(fmt.Sprintf("invalid type: %T", varPtr))
 	}
 }
 
