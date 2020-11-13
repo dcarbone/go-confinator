@@ -1,10 +1,8 @@
 package confinator
 
 import (
-	"encoding/binary"
 	"flag"
 	"fmt"
-	"math"
 	"reflect"
 	"strings"
 	"sync"
@@ -72,10 +70,6 @@ func DefaultFlagVarTypes() map[string]FlagVarTypeHandlerFunc {
 			}
 			fs.DurationVar(varPtr.(*time.Duration), name, v, usage)
 		},
-		// *StringDuration
-		kfn(new(StringDuration)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
-			fs.Var(varPtr.(*StringDuration), name, usage)
-		},
 	}
 }
 
@@ -98,83 +92,6 @@ func (cf *Confinator) RegisterFlagVarType(varPtr interface{}, fn FlagVarTypeHand
 		panic(fmt.Sprintf("Must provided a pointer, saw %T", varPtr))
 	}
 	cf.types[buildFlagVarTypeKey(varType)] = fn
-}
-
-// StringDuration is a quick hack to let us use time.Duration strings as config values in hcl files
-type StringDuration time.Duration
-
-func (sd StringDuration) String() string {
-	return time.Duration(sd).String()
-}
-
-func (sd *StringDuration) Set(v string) error {
-	if v == "" {
-		*sd = StringDuration(0)
-		return nil
-	}
-	d, err := time.ParseDuration(v)
-	if err != nil {
-		return err
-	}
-	*sd = StringDuration(d)
-	return nil
-}
-
-func (sd StringDuration) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 8, 8)
-	binary.LittleEndian.PutUint64(b, uint64(sd))
-	return b, nil
-}
-
-func (sd *StringDuration) UnmarshalBinary(b []byte) error {
-	if l := len(b); l != 8 {
-		return fmt.Errorf("expected 8 bytes, saw %d", l)
-	}
-	uv := binary.LittleEndian.Uint64(b)
-	if uv > math.MaxInt64 {
-		return fmt.Errorf("int64 overflow: %d", uv)
-	}
-	*sd = StringDuration(uv)
-	return nil
-}
-
-func (sd StringDuration) GobEncode() ([]byte, error) {
-	return sd.MarshalBinary()
-}
-
-func (sd *StringDuration) GobDecode(b []byte) error {
-	return sd.UnmarshalBinary(b)
-}
-
-func (sd StringDuration) MarshalText() ([]byte, error) {
-	return []byte(sd.String()), nil
-}
-
-func (sd *StringDuration) UnmarshalText(b []byte) error {
-	if string(b) == "null" {
-		return nil
-	}
-	return sd.Set(string(b))
-}
-
-func (sd StringDuration) MarshalJSON() ([]byte, error) {
-	return []byte("\"" + sd.String() + "\""), nil
-}
-
-func (sd *StringDuration) UnmarshalJSON(b []byte) error {
-	if string(b) == "null" {
-		return nil
-	}
-	clean := strings.Trim(string(b), "\"")
-	if clean == "" {
-		*sd = StringDuration(0)
-		return nil
-	}
-	return sd.Set(clean)
-}
-
-func (sd StringDuration) Duration() time.Duration {
-	return time.Duration(sd)
 }
 
 // stringMapValue is pulled from https://github.com/hashicorp/consul/blob/b5abf61963c7b0bdb674602bfb64051f8e23ddb1/agent/config/flagset.go#L118
