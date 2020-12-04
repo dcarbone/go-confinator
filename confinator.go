@@ -10,8 +10,8 @@ import (
 )
 
 func buildFlagVarTypeKey(varType reflect.Type) string {
-	const kfmt = "%s.%s"
-	return fmt.Sprintf(kfmt, varType.PkgPath(), varType.Name())
+	const kfmt = "%s%s%s"
+	return fmt.Sprintf(kfmt, varType.PkgPath(), varType.Name(), varType.String())
 }
 
 type FlagVarTypeHandlerFunc func(fs *flag.FlagSet, varPtr interface{}, name, usage string)
