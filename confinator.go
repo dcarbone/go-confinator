@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -57,6 +58,14 @@ func DefaultFlagVarTypes() map[string]FlagVarTypeHandlerFunc {
 		// *[]string
 		kfn(new([]string)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
 			fs.Var(newStringSliceValue(varPtr.(*[]string)), name, usage)
+		},
+		// *[]int
+		kfn(new([]int)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+			fs.Var(newIntSliceValue(varPtr.(*[]int)), name, usage)
+		},
+		// *[]uint
+		kfn(new([]uint)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+			fs.Var(newUintSliceValue(varPtr.(*[]uint)), name, usage)
 		},
 		// *[]map[string]string
 		kfn(new(map[string]string)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
@@ -146,6 +155,62 @@ func (s *stringSliceValue) Get() interface{} {
 
 func (s *stringSliceValue) String() string {
 	return strings.Join(*s, " ")
+}
+
+type intSliceValue []int
+
+func newIntSliceValue(p *[]int) *intSliceValue {
+	return (*intSliceValue)(p)
+}
+
+func (s *intSliceValue) Set(val string) error {
+	if i, err := strconv.Atoi(val); err != nil {
+		return err
+	} else {
+		*s = append(*s, i)
+		return nil
+	}
+}
+
+func (s *intSliceValue) Get() interface{} {
+	return s
+}
+
+func (s *intSliceValue) String() string {
+	l := len(*s)
+	tmp := make([]string, l, l)
+	for i, v := range *s {
+		tmp[i] = strconv.Itoa(v)
+	}
+	return strings.Join(tmp, " ")
+}
+
+type uintSliceValue []uint
+
+func newUintSliceValue(p *[]uint) *uintSliceValue {
+	return (*uintSliceValue)(p)
+}
+
+func (s *uintSliceValue) Set(val string) error {
+	if i, err := strconv.ParseUint(val, 10, 64); err != nil {
+		return err
+	} else {
+		*s = append(*s, uint(i))
+		return nil
+	}
+}
+
+func (s *uintSliceValue) Get() interface{} {
+	return s
+}
+
+func (s *uintSliceValue) String() string {
+	l := len(*s)
+	tmp := make([]string, l, l)
+	for i, v := range *s {
+		tmp[i] = strconv.FormatUint(uint64(v), 10)
+	}
+	return strings.Join(tmp, " ")
 }
 
 // FlagVar is a convenience method that handles a few common config struct -> flag cases
