@@ -47,6 +47,14 @@ func DefaultFlagVarTypes() map[string]FlagVarTypeHandlerFunc {
 			}
 			fs.IntVar(varPtr.(*int), name, v, usage)
 		},
+		// *int64
+		kfn(new(int64)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+			var v int64
+			if varPtr.(*int64) != nil {
+				v = *varPtr.(*int64)
+			}
+			fs.Int64Var(varPtr.(*int64), name, v, usage)
+		},
 		// *uint
 		kfn(new(uint)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
 			var v uint
@@ -54,6 +62,14 @@ func DefaultFlagVarTypes() map[string]FlagVarTypeHandlerFunc {
 				v = *varPtr.(*uint)
 			}
 			fs.UintVar(varPtr.(*uint), name, v, usage)
+		},
+		// *uint64
+		kfn(new(uint64)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+			var v uint64
+			if varPtr.(*uint64) != nil {
+				v = *varPtr.(*uint64)
+			}
+			fs.Uint64Var(varPtr.(*uint64), name, v, usage)
 		},
 		// *[]string
 		kfn(new([]string)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
