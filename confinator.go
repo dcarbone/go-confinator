@@ -3,6 +3,7 @@ package confinator
 import (
 	"flag"
 	"fmt"
+	"net"
 	"reflect"
 	"strconv"
 	"strings"
@@ -94,6 +95,10 @@ func DefaultFlagVarTypes() map[string]FlagVarTypeHandlerFunc {
 				v = *varPtr.(*time.Duration)
 			}
 			fs.DurationVar(varPtr.(*time.Duration), name, v, usage)
+		},
+		// *net.IP
+		kfn(new(net.IP)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+			fs.Var(newIPValue(varPtr.(*net.IP)), name, usage)
 		},
 	}
 }
@@ -227,6 +232,25 @@ func (s *uintSliceValue) String() string {
 		tmp[i] = strconv.FormatUint(uint64(v), 10)
 	}
 	return strings.Join(tmp, " ")
+}
+
+type ipStrValue net.IP
+
+func newIPValue(p *net.IP) *ipStrValue {
+	return (*ipStrValue)(p)
+}
+
+func (ip *ipStrValue) Set(val string) error {
+	*ip = ipStrValue(net.ParseIP(val))
+	return nil
+}
+
+func (ip *ipStrValue) Get() interface{} {
+	return ip
+}
+
+func (ip *ipStrValue) String() string {
+	return net.IP(*ip).String()
 }
 
 // FlagVar is a convenience method that handles a few common config struct -> flag cases
