@@ -84,9 +84,13 @@ func DefaultFlagVarTypes() map[string]FlagVarTypeHandlerFunc {
 		kfn(new([]uint)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
 			fs.Var(newUintSliceValue(varPtr.(*[]uint)), name, usage)
 		},
-		// *[]map[string]string
+		// *map[string]string
 		kfn(new(map[string]string)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
 			fs.Var(newStringMapValue(varPtr.(*map[string]string)), name, usage)
+		},
+		// *map[string][]string
+		kfn(new(map[string][]string)): func(fs *flag.FlagSet, vartPtr interface{}, name, usage string) {
+			fs.Var(newStringSliceMapValue(vartPtr.(*map[string][]string)), name, usage)
 		},
 		// *time.Duration
 		kfn(new(time.Duration)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
@@ -128,7 +132,7 @@ func (cf *Confinator) RegisterFlagVarType(varPtr interface{}, fn FlagVarTypeHand
 type stringMapValue map[string]string
 
 func newStringMapValue(p *map[string]string) *stringMapValue {
-	*p = map[string]string{}
+	*p = make(map[string]string)
 	return (*stringMapValue)(p)
 }
 
@@ -156,6 +160,43 @@ func (s *stringMapValue) String() string {
 		}
 	}
 	return strings.Join(x, " ")
+}
+
+type stringSliceMapValue map[string][]string
+
+func newStringSliceMapValue(p *map[string][]string) *stringSliceMapValue {
+	*p = make(map[string][]string)
+	return (*stringSliceMapValue)(p)
+}
+
+func (s *stringSliceMapValue) Set(val string) error {
+	p := strings.SplitN(val, ":", 2)
+	k, v := p[0], ""
+	if len(p) == 2 {
+		v = p[1]
+	}
+	if c, ok := (*s)[k]; ok {
+		(*s)[k] = append(c, v)
+	} else {
+		(*s)[k] = make([]string, 1)
+		(*s)[k][0] = v
+	}
+	return nil
+}
+
+func (s *stringSliceMapValue) Get() interface{} {
+	return s
+}
+
+func (s *stringSliceMapValue) String() string {
+	out := ""
+	for k, vs := range *s {
+		out = fmt.Sprintf("%s;%s:", out, k)
+		for i, v := range vs {
+			out = fmt.Sprintf("%s%d=%q,", out, i, v)
+		}
+	}
+	return out
 }
 
 // stringSliceValue is pulled from https://github.com/hashicorp/consul/blob/b5abf61963c7b0bdb674602bfb64051f8e23ddb1/agent/config/flagset.go#L183
