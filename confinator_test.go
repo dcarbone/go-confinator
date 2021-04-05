@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"net/http"
 	"reflect"
 	"strconv"
 	"testing"
@@ -95,6 +96,15 @@ func TestConfinator(t *testing.T) {
 				"-mapslice", "key1:value12",
 				"-mapslice=key2:value21",
 				"-mapslice", "key2:value22"},
+		},
+		"http.Header": {
+			Name:   "header",
+			VarPtr: new(http.Header),
+			FlagArgs: []string{
+				"-header=Authorization:Basic dGhlIGNha2UgaXMgYSBsaWU=",
+				"-header=Authorization:Basic ZG9scGhpbg==",
+				"-header", "Content-Type:*/*",
+			},
 		},
 		"time.Duration": {
 			Name:     "td",
