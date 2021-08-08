@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
@@ -107,6 +108,10 @@ func DefaultFlagVarTypes() map[string]FlagVarTypeHandlerFunc {
 		// *net.IP
 		kfn(new(net.IP)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
 			fs.Var(newIPStrValue(varPtr.(*net.IP)), name, usage)
+		},
+		// *url.URL
+		kfn(new(url.URL)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+			fs.Var(newURLStrValue(varPtr.(*url.URL)), name, usage)
 		},
 	}
 }
@@ -280,4 +285,27 @@ func (ip *ipStrValue) Get() interface{} {
 
 func (ip *ipStrValue) String() string {
 	return net.IP(*ip).String()
+}
+
+type urlStrValue url.URL
+
+func newURLStrValue(u *url.URL) *urlStrValue {
+	return (*urlStrValue)(u)
+}
+
+func (u *urlStrValue) Set(val string) error {
+	tmp, err := url.Parse(val)
+	if err != nil {
+		return err
+	}
+	*u = urlStrValue(*tmp)
+	return nil
+}
+
+func (u *urlStrValue) Get() interface{} {
+	return u
+}
+
+func (u *urlStrValue) String() string {
+	return (*url.URL)(u).String()
 }

@@ -6,6 +6,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/url"
 	"reflect"
 	"strconv"
 	"testing"
@@ -115,6 +116,11 @@ func TestConfinator(t *testing.T) {
 			Name:     "ip",
 			VarPtr:   new(net.IP),
 			FlagArgs: []string{"-ip", "10.2.3.4"},
+		},
+		"url.URL": {
+			Name:     "url",
+			VarPtr:   new(url.URL),
+			FlagArgs: []string{"-url", "https://google.com"},
 		},
 	}
 
