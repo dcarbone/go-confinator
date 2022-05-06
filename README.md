@@ -2,6 +2,8 @@
 
 Flag var parsing helpers
 
+[![.github/workflows/tests.yaml](https://github.com/dcarbone/go-confinator/actions/workflows/tests.yaml/badge.svg)](https://github.com/dcarbone/go-confinator/actions/workflows/tests.yaml)
+
 ## BuildInfo
 
 Build info is a single portable type designed to house and carry "version" information about your program.
