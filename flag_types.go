@@ -12,21 +12,24 @@ import (
 	"time"
 )
 
-func buildFlagVarTypeKey(varType reflect.Type) string {
-	const kfmt = "%s%s%s"
-	return fmt.Sprintf(kfmt, varType.PkgPath(), varType.Name(), varType.String())
+func kfn(ptr interface{}) string {
+	const kfmt = "%s.%s.%s"
+	if varType := reflect.TypeOf(ptr); varType == nil {
+		return "nil"
+	} else if varType.Kind() != reflect.Ptr {
+		panic(fmt.Sprintf("Must provide a pointer, saw %T", ptr))
+	} else {
+		return fmt.Sprintf(kfmt, varType.PkgPath(), varType.Name(), varType.String())
+	}
 }
 
 type FlagVarTypeHandlerFunc func(fs *flag.FlagSet, varPtr interface{}, name, usage string)
 
 // DefaultFlagVarTypes returns a list of
 func DefaultFlagVarTypes() map[string]FlagVarTypeHandlerFunc {
-	kfn := func(ptr interface{}) string {
-		return buildFlagVarTypeKey(reflect.TypeOf(ptr))
-	}
 	return map[string]FlagVarTypeHandlerFunc{
 		// *string
-		kfn(new(string)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+		kfn((*string)(nil)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
 			var v string
 			if varPtr.(*string) != nil {
 				v = *varPtr.(*string)
@@ -34,7 +37,7 @@ func DefaultFlagVarTypes() map[string]FlagVarTypeHandlerFunc {
 			fs.StringVar(varPtr.(*string), name, v, usage)
 		},
 		// *bool
-		kfn(new(bool)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+		kfn((*bool)(nil)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
 			var v bool
 			if varPtr.(*bool) != nil {
 				v = *varPtr.(*bool)
@@ -42,7 +45,7 @@ func DefaultFlagVarTypes() map[string]FlagVarTypeHandlerFunc {
 			fs.BoolVar(varPtr.(*bool), name, v, usage)
 		},
 		// *int
-		kfn(new(int)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+		kfn((*int)(nil)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
 			var v int
 			if varPtr.(*int) != nil {
 				v = *varPtr.(*int)
@@ -50,7 +53,7 @@ func DefaultFlagVarTypes() map[string]FlagVarTypeHandlerFunc {
 			fs.IntVar(varPtr.(*int), name, v, usage)
 		},
 		// *int64
-		kfn(new(int64)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+		kfn((*int64)(nil)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
 			var v int64
 			if varPtr.(*int64) != nil {
 				v = *varPtr.(*int64)
@@ -58,7 +61,7 @@ func DefaultFlagVarTypes() map[string]FlagVarTypeHandlerFunc {
 			fs.Int64Var(varPtr.(*int64), name, v, usage)
 		},
 		// *uint
-		kfn(new(uint)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+		kfn((*uint)(nil)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
 			var v uint
 			if varPtr.(*uint) != nil {
 				v = *varPtr.(*uint)
@@ -66,7 +69,7 @@ func DefaultFlagVarTypes() map[string]FlagVarTypeHandlerFunc {
 			fs.UintVar(varPtr.(*uint), name, v, usage)
 		},
 		// *uint64
-		kfn(new(uint64)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+		kfn((*uint64)(nil)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
 			var v uint64
 			if varPtr.(*uint64) != nil {
 				v = *varPtr.(*uint64)
@@ -74,31 +77,31 @@ func DefaultFlagVarTypes() map[string]FlagVarTypeHandlerFunc {
 			fs.Uint64Var(varPtr.(*uint64), name, v, usage)
 		},
 		// *[]string
-		kfn(new([]string)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+		kfn((*[]string)(nil)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
 			fs.Var(newStringSliceValue(varPtr.(*[]string)), name, usage)
 		},
 		// *[]int
-		kfn(new([]int)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+		kfn((*[]int)(nil)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
 			fs.Var(newIntSliceValue(varPtr.(*[]int)), name, usage)
 		},
 		// *[]uint
-		kfn(new([]uint)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+		kfn((*[]uint)(nil)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
 			fs.Var(newUintSliceValue(varPtr.(*[]uint)), name, usage)
 		},
 		// *map[string]string
-		kfn(new(map[string]string)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+		kfn((*map[string]string)(nil)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
 			fs.Var(newStringMapValue(varPtr.(*map[string]string)), name, usage)
 		},
 		// *map[string][]string
-		kfn(new(map[string][]string)): func(fs *flag.FlagSet, vartPtr interface{}, name, usage string) {
+		kfn((*map[string][]string)(nil)): func(fs *flag.FlagSet, vartPtr interface{}, name, usage string) {
 			fs.Var(newStringSliceMapValue(vartPtr.(*map[string][]string)), name, usage)
 		},
 		// *http.Header
-		kfn(new(http.Header)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+		kfn((*http.Header)(nil)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
 			fs.Var(newStringSliceMapFromHTTPHeaderValue(varPtr.(*http.Header)), name, usage)
 		},
 		// *time.Duration
-		kfn(new(time.Duration)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+		kfn((*time.Duration)(nil)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
 			var v time.Duration
 			if varPtr.(*time.Duration) != nil {
 				v = *varPtr.(*time.Duration)
@@ -106,11 +109,11 @@ func DefaultFlagVarTypes() map[string]FlagVarTypeHandlerFunc {
 			fs.DurationVar(varPtr.(*time.Duration), name, v, usage)
 		},
 		// *net.IP
-		kfn(new(net.IP)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+		kfn((*net.IP)(nil)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
 			fs.Var(newIPStrValue(varPtr.(*net.IP)), name, usage)
 		},
 		// *url.URL
-		kfn(new(url.URL)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
+		kfn((*url.URL)(nil)): func(fs *flag.FlagSet, varPtr interface{}, name, usage string) {
 			fs.Var(newURLStrValue(varPtr.(*url.URL)), name, usage)
 		},
 	}

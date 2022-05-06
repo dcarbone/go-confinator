@@ -16,111 +16,118 @@ import (
 )
 
 type testSuite struct {
-	Name     string
-	Usage    string
-	VarPtr   interface{}
-	FlagArgs []string
+	flagVar     interface{}
+	flagUsage   string
+	flagName    string
+	flagArgs    []string
+	expectPanic bool
 }
 
 func TestConfinator(t *testing.T) {
 	testSuites := map[string]testSuite{
 		"string": {
-			Name:     "steve",
-			VarPtr:   new(string),
-			FlagArgs: []string{"-steve", "\"is here\""},
+			flagName: "steve",
+			flagVar:  new(string),
+			flagArgs: []string{"-steve", `"is here"`},
+		},
+		"string-nil": {
+			flagVar:     (*string)(nil),
+			expectPanic: true,
+			flagName:    "steve",
+			flagArgs:    []string{"-steve", `"is here"`},
 		},
 		"bool-true": {
-			Name:     "yes",
-			VarPtr:   new(bool),
-			FlagArgs: []string{"-yes", "true"},
+			flagName: "yes",
+			flagVar:  new(bool),
+			flagArgs: []string{"-yes", "true"},
 		},
 		"bool-false": {
-			Name:     "no",
-			VarPtr:   new(bool),
-			FlagArgs: []string{"-no", "false"},
+			flagName: "no",
+			flagVar:  new(bool),
+			flagArgs: []string{"-no", "false"},
 		},
 		"int-real": {
-			Name:     "not-negative",
-			VarPtr:   new(int),
-			FlagArgs: []string{"-not-negative", "9001"},
+			flagName: "not-negative",
+			flagVar:  new(int),
+			flagArgs: []string{"-not-negative", "9001"},
 		},
 		"int-negative": {
-			Name:     "negative",
-			VarPtr:   new(int),
-			FlagArgs: []string{"-negative", "-9001"},
+			flagName: "negative",
+			flagVar:  new(int),
+			flagArgs: []string{"-negative", "-9001"},
 		},
 		"int64-real": {
-			Name:     "bignum",
-			VarPtr:   new(int64),
-			FlagArgs: []string{"-bignum", strconv.Itoa(math.MaxInt64)},
+			flagName: "bignum",
+			flagVar:  new(int64),
+			flagArgs: []string{"-bignum", strconv.Itoa(math.MaxInt64)},
 		},
 		"int64-negative": {
-			Name:     "smallnum",
-			VarPtr:   new(int64),
-			FlagArgs: []string{"-smallnum", strconv.Itoa(math.MinInt64)},
+			flagName: "smallnum",
+			flagVar:  new(int64),
+			flagArgs: []string{"-smallnum", strconv.Itoa(math.MinInt64)},
 		},
 		"uint": {
-			Name:     "uint",
-			VarPtr:   new(uint),
-			FlagArgs: []string{"-uint", strconv.FormatUint(math.MaxUint64, 10)},
+			flagName: "uint",
+			flagVar:  new(uint),
+			flagArgs: []string{"-uint", strconv.FormatUint(math.MaxUint64, 10)},
 		},
 		"uint64": {
-			Name:     "uint64",
-			VarPtr:   new(uint),
-			FlagArgs: []string{"-uint64", strconv.FormatUint(math.MaxUint64, 10)},
+			flagName: "uint64",
+			flagVar:  new(uint),
+			flagArgs: []string{"-uint64", strconv.FormatUint(math.MaxUint64, 10)},
 		},
 		"[]string": {
-			Name:     "strings",
-			VarPtr:   &([]string{}),
-			FlagArgs: []string{"-strings=one", "-strings", "two"},
+			flagName: "strings",
+			flagVar:  &([]string{}),
+			flagArgs: []string{"-strings=one", "-strings", "two"},
 		},
 		"[]int": {
-			Name:     "ints",
-			VarPtr:   &([]int{}),
-			FlagArgs: []string{"-ints=1", "-ints", "2"},
+			flagName: "ints",
+			flagVar:  &([]int{}),
+			flagArgs: []string{"-ints=1", "-ints", "2"},
 		},
 		"[]uint": {
-			Name:     "uints",
-			VarPtr:   &([]uint{}),
-			FlagArgs: []string{"-uints=11", "-uints", "22"},
+			flagName: "uints",
+			flagVar:  &([]uint{}),
+			flagArgs: []string{"-uints=11", "-uints", "22"},
 		},
 		"map[string]string": {
-			Name:     "map",
-			VarPtr:   &(map[string]string{}),
-			FlagArgs: []string{"-map=key1:value1", "-map", "key2:value2"},
+			flagName: "map",
+			flagVar:  &(map[string]string{}),
+			flagArgs: []string{"-map=key1:value1", "-map", "key2:value2"},
 		},
 		"map[string][]string": {
-			Name:   "mapslice",
-			VarPtr: &(map[string][]string{}),
-			FlagArgs: []string{
+			flagName: "mapslice",
+			flagVar:  &(map[string][]string{}),
+			flagArgs: []string{
 				"-mapslice=key1:value1",
 				"-mapslice", "key1:value12",
 				"-mapslice=key2:value21",
 				"-mapslice", "key2:value22"},
 		},
 		"http.Header": {
-			Name:   "header",
-			VarPtr: new(http.Header),
-			FlagArgs: []string{
+			flagName: "header",
+			flagVar:  new(http.Header),
+			flagArgs: []string{
 				"-header=Authorization:Basic dGhlIGNha2UgaXMgYSBsaWU=",
 				"-header=Authorization:Basic ZG9scGhpbg==",
 				"-header", "Content-Type:*/*",
 			},
 		},
 		"time.Duration": {
-			Name:     "td",
-			VarPtr:   new(time.Duration),
-			FlagArgs: []string{"-td", "5ns"},
+			flagName: "td",
+			flagVar:  new(time.Duration),
+			flagArgs: []string{"-td", "5ns"},
 		},
 		"net.IP": {
-			Name:     "ip",
-			VarPtr:   new(net.IP),
-			FlagArgs: []string{"-ip", "10.2.3.4"},
+			flagName: "ip",
+			flagVar:  new(net.IP),
+			flagArgs: []string{"-ip", "10.2.3.4"},
 		},
 		"url.URL": {
-			Name:     "url",
-			VarPtr:   new(url.URL),
-			FlagArgs: []string{"-url", "https://google.com"},
+			flagName: "url",
+			flagVar:  new(url.URL),
+			flagArgs: []string{"-url", "https://google.com"},
 		},
 	}
 
@@ -128,20 +135,26 @@ func TestConfinator(t *testing.T) {
 		t.Run(tn, func(t *testing.T) {
 			ts := ts
 			tn := tn
-			if reflect.ValueOf(ts.VarPtr).Kind() != reflect.Ptr {
-				t.Logf("Value provided to %q is a non-pointer: %v", tn, ts.VarPtr)
-				t.Fail()
-				return
-			}
+			defer func() {
+				v := recover()
+				if ts.expectPanic {
+					if v == nil {
+						t.Log("Expected panic, but got none")
+						t.Fail()
+					} else {
+						t.Logf("Expected panic seen: %v", v)
+					}
+				}
+			}()
 			t.Parallel()
 			cf := confinator.NewConfinator()
 			fs := flag.NewFlagSet(fmt.Sprintf("test-fs-%s", tn), flag.ContinueOnError)
-			cf.FlagVar(fs, ts.VarPtr, ts.Name, ts.Usage)
-			if err := fs.Parse(ts.FlagArgs); err != nil {
+			cf.FlagVar(fs, ts.flagVar, ts.flagName, ts.flagUsage)
+			if err := fs.Parse(ts.flagArgs); err != nil {
 				t.Logf("Error running test %q: %v", tn, err)
 				t.Fail()
 			} else {
-				t.Logf("%q Parsed value: %#v", tn, reflect.ValueOf(ts.VarPtr).Elem())
+				t.Logf("%q Parsed value: %#v", tn, reflect.ValueOf(ts.flagVar).Elem())
 			}
 		})
 	}
